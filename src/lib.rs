@@ -1,4 +1,4 @@
-//! Determine whether two floating point numbers are close in value
+//! Determine whether floating point numbers are close in value
 //!
 //! In use cases such as testing it is often times more useful to know whether two floating point
 //! numbers are close to each other rather than exactly equal. Due to finite precision of computers,
