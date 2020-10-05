@@ -1,0 +1,17 @@
+language: rust
+
+rust:
+  - stable
+  - beta
+  - nightly
+
+matrix:
+  allow_failures:
+    - rust: nightly
+
+before_script:
+  - cargo generate-lockfile
+
+script:
+  - cargo check --verbose --workspace
+  - cargo test --verbose --workspace
