@@ -1,0 +1,8 @@
+[package]
+name = "is_close"
+version = "0.1.0"
+authors = ["0b11001111"]
+edition = "2018"
+
+[dependencies]
+num-traits = "0.2"
