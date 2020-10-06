@@ -16,6 +16,15 @@ strongly inspired by
 
 ## Usage
 
+```rust
+#[macro_use]
+extern crate is_close;
+
+assert!(is_close!(42.0, 42.0));
+assert!(all_close!(vec![9.0, 10.0], vec![9.0, 10.0]));
+assert!(any_close!(vec![0.0, 10.0], vec![9.0, 10.0]));
+```
+
 You'll find plenty of examples at our [documentation](https://docs.rs/is_close).
 
 ## License
