@@ -1,6 +1,6 @@
 [package]
 name = "is_close"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["0b11001111"]
 edition = "2018"
 description = "Determine whether floating point numbers are close in value"
