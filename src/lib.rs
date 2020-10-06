@@ -41,27 +41,32 @@
 //! # }
 //! ```
 //!
-//! ### Configuration
+//! ### Advanced Usage
 //!
 //! There are different ways to determine whether two values are close to each other or not.
-//! `is_close` comes with sane [default settings](fn.default.html). However, the following examples
-//! illustrate how to tweak the comparison:
+//! There are a few paramenters playing into the comparison of two floats. `is_close` comes with
+//! sane [default settings](fn.default.html). However, the following examples illustrate how to
+//! tweak the comparison to suit your needs:
 //!
 //! **Relative Tolerance:** the amount of error allowed, relative to the magnitude of the input
 //! values:
 //! ```
+//! # #[macro_use]
 //! # extern crate is_close;
-//! # use is_close::default;
-//! assert!(default().rel_tol(1e-2).is_close(9.9, 10.0));
-//! assert!(!default().rel_tol(1e-3).is_close(9.9, 10.0));
+//! # fn main() {
+//! assert!(is_close!(9.9, 10.0, rel_tol=1e-2));
+//! assert!(!is_close!(9.9, 10.0, rel_tol=1e-3));
+//! # }
 //! ```
 //!
 //! **Absolute Tolerance:** useful for comparisons to zero:
 //! ```
+//! # #[macro_use]
 //! # extern crate is_close;
-//! # use is_close::default;
-//! assert!(default().abs_tol(1e-1).is_close(0.0, 0.1));
-//! assert!(!default().abs_tol(1e-2).is_close(0.0, 0.1));
+//! # fn main() {
+//! assert!(is_close!(0.0, 0.1, abs_tol=1e-1));
+//! assert!(!is_close!(0.0, 0.1, abs_tol=1e-2));
+//! # }
 //! ```
 //!
 //! **Other Methods:** the strategy of how to interpret relative tolerance, see
