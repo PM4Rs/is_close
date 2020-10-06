@@ -1,7 +1,7 @@
 # is_close
 **Determine whether floating point numbers are close in value**
 
-[![Build Status](https://travis-ci.org/PM4Rs/is_close.svg?branch=master)](https://travis-ci.org/PM4Rs/is_close)
+[![Build Status](https://travis-ci.org/PM4Rs/is_close.svg?branch=main)](https://travis-ci.org/PM4Rs/is_close)
 [![Crate](https://img.shields.io/crates/v/is_close)](https://crates.io/crates/is_close)
 [![API](https://docs.rs/is_close/badge.svg)](https://docs.rs/is_close)
 [![License](https://img.shields.io/crates/l/is_close)](https://crates.io/crates/is_close#license)
