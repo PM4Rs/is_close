@@ -12,19 +12,19 @@
 //! **Basic usage ...**
 //! ```
 //! extern crate is_close;
-//! use is_close::default as ic;
+//! use is_close::default;
 //!
-//! assert!(ic().is_close(42.0, 42.0));
-//! assert!(!ic().is_close(13.0, 37.0));
+//! assert!(default().is_close(42.0, 42.0));
+//! assert!(!default().is_close(13.0, 37.0));
 //!
-//! assert!(ic().all_close(vec![9.0, 10.0], vec![9.0, 10.0]));
-//! assert!(!ic().all_close(vec![0.0, 10.0], vec![9.0, 10.0]));
+//! assert!(default().all_close(vec![9.0, 10.0], vec![9.0, 10.0]));
+//! assert!(!default().all_close(vec![0.0, 10.0], vec![9.0, 10.0]));
 //!
-//! assert!(ic().any_close(vec![0.0, 10.0], vec![9.0, 10.0]));
-//! assert!(!ic().any_close(vec![0.0, 0.0], vec![9.0, 10.0]));
+//! assert!(default().any_close(vec![0.0, 10.0], vec![9.0, 10.0]));
+//! assert!(!default().any_close(vec![0.0, 0.0], vec![9.0, 10.0]));
 //! ```
 //!
-//! **... the same with macros**
+//! **... and the same with macros**
 //! ```
 //! #[macro_use]
 //! extern crate is_close;
@@ -51,17 +51,17 @@
 //! values:
 //! ```
 //! # extern crate is_close;
-//! # use is_close::default as ic;
-//! assert!(ic().rel_tol(1e-2).is_close(9.9, 10.0));
-//! assert!(!ic().rel_tol(1e-3).is_close(9.9, 10.0));
+//! # use is_close::default;
+//! assert!(default().rel_tol(1e-2).is_close(9.9, 10.0));
+//! assert!(!default().rel_tol(1e-3).is_close(9.9, 10.0));
 //! ```
 //!
 //! **Absolute Tolerance:** useful for comparisons to zero:
 //! ```
 //! # extern crate is_close;
-//! # use is_close::default as ic;
-//! assert!(ic().abs_tol(1e-1).is_close(0.0, 0.1));
-//! assert!(!ic().abs_tol(1e-2).is_close(0.0, 0.1));
+//! # use is_close::default;
+//! assert!(default().abs_tol(1e-1).is_close(0.0, 0.1));
+//! assert!(!default().abs_tol(1e-2).is_close(0.0, 0.1));
 //! ```
 //!
 //! **Other Methods:** the strategy of how to interpret relative tolerance, see
@@ -69,29 +69,30 @@
 //! ```
 //! # #[macro_use]
 //! # extern crate is_close;
-//! # use is_close::default as ic;
+//! # use is_close::default;
 //! use is_close::{ASYMMETRIC, WEAK, STRONG, AVERAGE};
 //!
 //! # fn main() {
-//! // Relative tolerance is scaled by the larger of the two values (default)
-//! assert!(ic().method("weak").rel_tol(1e-1).is_close(9.0, 10.0));
-//! assert!(ic().method("weak").rel_tol(1e-1).is_close(10.0, 9.0));
-//! assert!(!ic().method(WEAK).rel_tol(1e-2).is_close(9.0, 10.0));
-//! assert!(!ic().method(WEAK).rel_tol(1e-2).is_close(10.0, 9.0));
+//! // Weak: relative tolerance is scaled by the larger of the two values (default)
+//! assert!(default().method("weak").rel_tol(1e-1).is_close(9.0, 10.0));
+//! assert!(default().method("weak").rel_tol(1e-1).is_close(10.0, 9.0));
+//! assert!(!default().method(WEAK).rel_tol(1e-2).is_close(9.0, 10.0));
+//! assert!(!default().method(WEAK).rel_tol(1e-2).is_close(10.0, 9.0));
 //!
-//! // Relative tolerance is scaled by the smaller of the two values
+//! // Strong: relative tolerance is scaled by the smaller of the two values
 //! assert!(all_close!(vec![9.0, 10.0], vec![10.0, 9.0], rel_tol=2e-1, method="STRONG"));
 //! assert!(!any_close!(vec![9.0, 10.0], vec![10.0, 9.0], rel_tol=1e-1, method=STRONG));
 //!
-//! // Relative tolerance is scaled by the average of the two values
+//! // Average: relative tolerance is scaled by the average of the two values
 //! assert!(is_close!(9.0, 10.0, rel_tol=2e-1, method="average"));
 //! assert!(is_close!(10.0, 9.0, rel_tol=2e-1, method="average"));
 //! assert!(!is_close!(9.0, 10.0, rel_tol=1e-1, method=AVERAGE));
 //! assert!(!is_close!(10.0, 9.0, rel_tol=1e-1, method=AVERAGE));
 //!
-//! // The second value (`b`) is used for scaling the tolerance
-//! assert!(ic().method("asymmetric").rel_tol(1e-1).is_close(9.0, 10.0));
-//! assert!(!ic().method(ASYMMETRIC).rel_tol(1e-1).is_close(10.0, 9.0));
+//! // Asymmetric: he second value (`b`) is used for scaling the tolerance
+//! let ic = default().method(ASYMMETRIC).rel_tol(1e-1).compile();
+//! assert!(ic(9.0, 10.0));
+//! assert!(!ic(10.0, 9.0));
 //! # }
 //! ```
 //!
@@ -181,7 +182,7 @@ impl<T: Float + Debug> Debug for IsClose<T> {
     }
 }
 
-impl<T: Float> IsClose<T> {
+impl<T: Float + 'static> IsClose<T> {
     /// Set the relative tolerance
     pub fn rel_tol(&mut self, value: T) -> &mut Self {
         self._rel_tol = value.abs();
@@ -200,37 +201,48 @@ impl<T: Float> IsClose<T> {
         self
     }
 
+    /// Compile current configuration into a closure which increases speed when called multiple times
+    pub fn compile(&self) -> Box<dyn Fn(T, T) -> bool> {
+        let rel_tol = self._rel_tol;
+        let abs_tol = self._abs_tol;
+
+        let _is_close: Box<dyn Fn(T, T, T) -> bool> = match self._method {
+            Method::Asymmetric => {
+                Box::new(move |_, b, diff| (diff <= Float::abs(rel_tol * b)) || (diff <= abs_tol))
+            }
+            Method::Average => Box::new(move |a, b, diff| {
+                diff <= (rel_tol * (a + b) / cast::cast(2.0).unwrap()).abs() || (diff <= abs_tol)
+            }),
+            Method::Strong => Box::new(move |a, b, diff| {
+                ((diff <= Float::abs(rel_tol * b)) && (diff <= Float::abs(rel_tol * a)))
+                    || (diff <= abs_tol)
+            }),
+            Method::Weak => Box::new(move |a, b, diff| {
+                ((diff <= Float::abs(rel_tol * b)) || (diff <= Float::abs(rel_tol * a)))
+                    || (diff <= abs_tol)
+            }),
+        };
+
+        Box::new(move |a: T, b: T| {
+            // trivial case
+            if a == b {
+                return true;
+            }
+
+            // check border cases
+            let diff = (b - a).abs();
+            if !diff.is_finite() {
+                return false;
+            }
+
+            // assess difference by chosen method
+            _is_close(a, b, diff)
+        })
+    }
+
     /// Check whether or not two values `a` and `b` are "close" to each other
     pub fn is_close(&self, a: T, b: T) -> bool {
-        // trivial case
-        if a == b {
-            return true;
-        }
-
-        // check border cases
-        let diff = (b - a).abs();
-        if !diff.is_finite() {
-            return false;
-        }
-
-        // assess difference by chosen method
-        match self._method {
-            Method::Asymmetric => {
-                (diff <= Float::abs(self._rel_tol * b)) || (diff <= self._abs_tol)
-            }
-            Method::Average => {
-                diff <= (self._rel_tol * (a + b) / cast::cast(2.0).unwrap()).abs()
-                    || (diff <= self._abs_tol)
-            }
-            Method::Strong => {
-                ((diff <= Float::abs(self._rel_tol * b)) && (diff <= Float::abs(self._rel_tol * a)))
-                    || (diff <= self._abs_tol)
-            }
-            Method::Weak => {
-                ((diff <= Float::abs(self._rel_tol * b)) || (diff <= Float::abs(self._rel_tol * a)))
-                    || (diff <= self._abs_tol)
-            }
-        }
+        self.compile()(a, b)
     }
 
     /// Check whether or not two iterables `a` and `b` are pairwise "close" to each other
@@ -239,9 +251,10 @@ impl<T: Float> IsClose<T> {
         I: IntoIterator<Item = T>,
         J: IntoIterator<Item = T>,
     {
+        let _is_close = self.compile();
         a.into_iter()
             .zip(b.into_iter())
-            .all(|(x, y)| self.is_close(x, y))
+            .all(|(x, y)| _is_close(x, y))
     }
 
     /// Check whether or not two iterables `a` and `b` are pairwise "close" to each other in at least one place
@@ -250,9 +263,10 @@ impl<T: Float> IsClose<T> {
         I: IntoIterator<Item = T>,
         J: IntoIterator<Item = T>,
     {
+        let _is_close = self.compile();
         a.into_iter()
             .zip(b.into_iter())
-            .any(|(x, y)| self.is_close(x, y))
+            .any(|(x, y)| _is_close(x, y))
     }
 }
 
@@ -335,13 +349,13 @@ macro_rules! any_close {
 
 #[cfg(test)]
 mod tests {
-    use super::{default as ic, *};
+    use super::*;
 
     #[test]
     fn test_debug() {
         assert_eq!(
             "IsClose { rel_tol: 0.00000001, abs_tol: 0.0, method: Weak }",
-            format!("{:?}", ic::<f64>())
+            format!("{:?}", default::<f64>())
         )
     }
 
@@ -353,7 +367,7 @@ mod tests {
             (1.123e-300, 1.123e-300),
             (0.0, -0.0),
         ] {
-            assert!(ic().rel_tol(0.0).abs_tol(0.0).is_close(*a, *b));
+            assert!(default().rel_tol(0.0).abs_tol(0.0).is_close(*a, *b));
             assert!(is_close!(*a, *b, abs_tol = 0.0));
         }
     }
@@ -365,9 +379,9 @@ mod tests {
             (-1e-8, -1.000000009e-8),
             (1.12345678, 1.12345679),
         ] {
-            assert!(ic().rel_tol(1e-8).is_close(*a, *b));
+            assert!(default().rel_tol(1e-8).is_close(*a, *b));
             assert!(is_close!(*a, *b, rel_tol = 1e-8));
-            assert!(!ic().rel_tol(1e-9).is_close(*a, *b));
+            assert!(!default().rel_tol(1e-9).is_close(*a, *b));
             assert!(!is_close!(*a, *b, rel_tol = 1e-9));
         }
     }
@@ -375,9 +389,9 @@ mod tests {
     #[test]
     fn test_zero() {
         for (a, b) in &[(1e-9, 0.0), (-1e-9, 0.0), (-1e-150, 0.0)] {
-            assert!(ic().abs_tol(1e-8).is_close(*a, *b));
+            assert!(default().abs_tol(1e-8).is_close(*a, *b));
             assert!(is_close!(*a, *b, abs_tol = 1e-8));
-            assert!(!ic().rel_tol(0.9).is_close(*a, *b));
+            assert!(!default().rel_tol(0.9).is_close(*a, *b));
             assert!(!is_close!(*a, *b, rel_tol = 0.9));
         }
     }
@@ -388,7 +402,7 @@ mod tests {
             (f64::INFINITY, f64::INFINITY),
             (f64::NEG_INFINITY, f64::NEG_INFINITY),
         ] {
-            assert!(ic().abs_tol(0.999999999999999).is_close(*a, *b));
+            assert!(default().abs_tol(0.999999999999999).is_close(*a, *b));
             assert!(is_close!(*a, *b, abs_tol = 0.999999999999999));
         }
 
@@ -402,17 +416,17 @@ mod tests {
             (f64::INFINITY, 1.0),
             (1.0, f64::INFINITY),
         ] {
-            assert!(!ic().abs_tol(0.999999999999999).is_close(*a, *b));
+            assert!(!default().abs_tol(0.999999999999999).is_close(*a, *b));
             assert!(!is_close!(*a, *b, abs_tol = 0.999999999999999));
         }
     }
 
     #[test]
     fn test_other_methods() {
-        assert!(ic().method("weak").rel_tol(1e-1).is_close(9.0, 10.0));
-        assert!(ic().method("weak").rel_tol(1e-1).is_close(10.0, 9.0));
-        assert!(!ic().method(WEAK).rel_tol(1e-2).is_close(9.0, 10.0));
-        assert!(!ic().method(WEAK).rel_tol(1e-2).is_close(10.0, 9.0));
+        assert!(default().method("weak").rel_tol(1e-1).is_close(9.0, 10.0));
+        assert!(default().method("weak").rel_tol(1e-1).is_close(10.0, 9.0));
+        assert!(!default().method(WEAK).rel_tol(1e-2).is_close(9.0, 10.0));
+        assert!(!default().method(WEAK).rel_tol(1e-2).is_close(10.0, 9.0));
 
         assert!(all_close!(
             vec![9.0, 10.0],
@@ -432,24 +446,25 @@ mod tests {
         assert!(!is_close!(9.0, 10.0, rel_tol = 1e-1, method = AVERAGE));
         assert!(!is_close!(10.0, 9.0, rel_tol = 1e-1, method = AVERAGE));
 
-        assert!(ic().method("asymmetric").rel_tol(1e-1).is_close(9.0, 10.0));
-        assert!(!ic().method(ASYMMETRIC).rel_tol(1e-1).is_close(10.0, 9.0));
+        let ic = default().method(ASYMMETRIC).rel_tol(1e-1).compile();
+        assert!(ic(9.0, 10.0));
+        assert!(!ic(10.0, 9.0));
     }
 
     #[test]
     #[should_panic(expected = "unknown method \"fnord\"")]
     fn test_unknown_method() {
-        ic::<f64>().method("fnord");
+        default::<f64>().method("fnord");
     }
 
     #[test]
     fn test_all_close() {
-        assert!(ic().all_close(vec![0.0, 1.0, 2.0], (0..3).into_iter().map(|i| i as f64)));
+        assert!(default().all_close(vec![0.0, 1.0, 2.0], (0..3).into_iter().map(|i| i as f64)));
         assert!(all_close!(
             vec![0.0, 1.0, 2.0],
             (0..3).into_iter().map(|i| i as f64)
         ));
-        assert!(!ic().all_close(vec![0.0, 1.0, 3.0], (0..3).into_iter().map(|i| i as f64)));
+        assert!(!default().all_close(vec![0.0, 1.0, 3.0], (0..3).into_iter().map(|i| i as f64)));
         assert!(!all_close!(
             vec![0.0, 1.0, 3.0],
             (0..3).into_iter().map(|i| i as f64)
