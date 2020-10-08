@@ -80,9 +80,7 @@
 //! # fn main() {
 //! // Weak: relative tolerance is scaled by the larger of the two values (default)
 //! assert!(default().method("weak").rel_tol(1e-1).is_close(9.0, 10.0));
-//! assert!(default().method("weak").rel_tol(1e-1).is_close(10.0, 9.0));
 //! assert!(!default().method(WEAK).rel_tol(1e-2).is_close(9.0, 10.0));
-//! assert!(!default().method(WEAK).rel_tol(1e-2).is_close(10.0, 9.0));
 //!
 //! // Strong: relative tolerance is scaled by the smaller of the two values
 //! assert!(all_close!(vec![9.0, 10.0], vec![10.0, 9.0], rel_tol=2e-1, method="STRONG"));
@@ -90,9 +88,7 @@
 //!
 //! // Average: relative tolerance is scaled by the average of the two values
 //! assert!(is_close!(9.0, 10.0, rel_tol=2e-1, method="average"));
-//! assert!(is_close!(10.0, 9.0, rel_tol=2e-1, method="average"));
 //! assert!(!is_close!(9.0, 10.0, rel_tol=1e-1, method=AVERAGE));
-//! assert!(!is_close!(10.0, 9.0, rel_tol=1e-1, method=AVERAGE));
 //!
 //! // Asymmetric: he second value (`b`) is used for scaling the tolerance
 //! let ic = default().method(ASYMMETRIC).rel_tol(1e-1).compile();
