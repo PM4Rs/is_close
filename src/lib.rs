@@ -9,7 +9,7 @@
 //!
 //! ## Examples
 //!
-//! **Basic usage ...**
+//! Basic usage ...
 //! ```
 //! extern crate is_close;
 //! use is_close::default;
@@ -24,7 +24,7 @@
 //! assert!(!default().any_close(vec![0.0, 0.0], vec![9.0, 10.0]));
 //! ```
 //!
-//! **... and the same with macros**
+//! ... and the same with macros
 //! ```
 //! #[macro_use]
 //! extern crate is_close;
@@ -41,15 +41,16 @@
 //! # }
 //! ```
 //!
-//! ### Advanced Usage
+//! ## Advanced Usage
 //!
 //! There are different ways to determine whether two values are close to each other or not.
 //! There are a few paramenters playing into the comparison of two floats. `is_close` comes with
 //! sane [default settings](fn.default.html). However, the following examples illustrate how to
 //! tweak the comparison to suit your needs:
 //!
-//! **Relative Tolerance:** the amount of error allowed, relative to the magnitude of the input
-//! values:
+//! ### Relative Tolerance
+//! The amount of error allowed, relative to the magnitude of the input values.
+//! TODO method
 //! ```
 //! # #[macro_use]
 //! # extern crate is_close;
@@ -59,7 +60,8 @@
 //! # }
 //! ```
 //!
-//! **Absolute Tolerance:** useful for comparisons to zero:
+//! ### Absolute Tolerance
+//! Useful for comparisons near zero.
 //! ```
 //! # #[macro_use]
 //! # extern crate is_close;
@@ -69,28 +71,56 @@
 //! # }
 //! ```
 //!
-//! **Other Methods:** the strategy of how to interpret relative tolerance, see
-//! [`Method`](enum.Method.html):
+//! ### Methods:
+//! The strategy of how to interpret relative tolerance, see [`Method`](enum.Method.html):
+//!
+//! **Weak (default):** relative tolerance is scaled by the larger of the two values
 //! ```
 //! # #[macro_use]
 //! # extern crate is_close;
 //! # use is_close::default;
-//! use is_close::{ASYMMETRIC, WEAK, STRONG, AVERAGE};
+//! use is_close::WEAK;
 //!
 //! # fn main() {
-//! // Weak: relative tolerance is scaled by the larger of the two values (default)
 //! assert!(default().method("weak").rel_tol(1e-1).is_close(9.0, 10.0));
 //! assert!(!default().method(WEAK).rel_tol(1e-2).is_close(9.0, 10.0));
+//! # }
+//! ```
 //!
-//! // Strong: relative tolerance is scaled by the smaller of the two values
+//! **Strong:** relative tolerance is scaled by the smaller of the two values
+//! ```
+//! # #[macro_use]
+//! # extern crate is_close;
+//! # use is_close::default;
+//! use is_close::STRONG;
+//!
+//! # fn main() {
 //! assert!(all_close!(vec![9.0, 10.0], vec![10.0, 9.0], rel_tol=2e-1, method="STRONG"));
 //! assert!(!any_close!(vec![9.0, 10.0], vec![10.0, 9.0], rel_tol=1e-1, method=STRONG));
+//! # }
+//! ```
 //!
-//! // Average: relative tolerance is scaled by the average of the two values
+//! **Average:** relative tolerance is scaled by the average of the two values
+//! ```
+//! # #[macro_use]
+//! # extern crate is_close;
+//! # use is_close::default;
+//! use is_close::AVERAGE;
+//!
+//! # fn main() {
 //! assert!(is_close!(9.0, 10.0, rel_tol=2e-1, method="average"));
 //! assert!(!is_close!(9.0, 10.0, rel_tol=1e-1, method=AVERAGE));
+//! # }
+//! ```
 //!
-//! // Asymmetric: he second value (`b`) is used for scaling the tolerance
+//! **Asymmetric:** the second value (`b`) is used for scaling the tolerance
+//! ```
+//! # #[macro_use]
+//! # extern crate is_close;
+//! # use is_close::default;
+//! use is_close::ASYMMETRIC;
+//!
+//! # fn main() {
 //! let ic = default().method(ASYMMETRIC).rel_tol(1e-1).compile();
 //! assert!(ic(9.0, 10.0));
 //! assert!(!ic(10.0, 9.0));
@@ -139,7 +169,7 @@ impl From<&str> for Method {
             "average" => Self::Average,
             "strong" => Self::Strong,
             "weak" => Self::Weak,
-            _ => panic!(format!("unknown method {:?}", s)),
+            _ => panic!("unknown method {:?}", s),
         }
     }
 }
@@ -149,9 +179,9 @@ impl From<&str> for Method {
 /// This type holds information on how to compare floats and is heavily inspired by
 /// [Python's PEP 485](https://www.python.org/dev/peps/pep-0485/). It holds the following parameters:
 ///
-/// - `rel_tol`: maximum difference for being considered "close", relative to the magnitude of the
+/// - `rel_tol`: maximum difference for being considered close, relative to the magnitude of the
 ///         input values, defaults to 1e-8
-/// - `abs_tol`: maximum difference for being considered "close", regardless of the magnitude of the
+/// - `abs_tol`: maximum difference for being considered close, regardless of the magnitude of the
 ///         input values, defaults to 0.0
 /// - `method`: strategy of how to interpret relative tolerance, see [`Method`](enum.Method.html)
 ///
@@ -241,12 +271,12 @@ impl<T: Float + 'static> IsClose<T> {
         })
     }
 
-    /// Check whether or not two values `a` and `b` are "close" to each other
+    /// Check whether or not two values `a` and `b` are close to each other
     pub fn is_close(&self, a: T, b: T) -> bool {
         self.compile()(a, b)
     }
 
-    /// Check whether or not two iterables `a` and `b` are pairwise "close" to each other
+    /// Check whether or not two iterables `a` and `b` are pairwise close to each other
     pub fn all_close<I, J>(&self, a: I, b: J) -> bool
     where
         I: IntoIterator<Item = T>,
@@ -258,7 +288,7 @@ impl<T: Float + 'static> IsClose<T> {
             .all(|(x, y)| _is_close(x, y))
     }
 
-    /// Check whether or not two iterables `a` and `b` are pairwise "close" to each other in at least one place
+    /// Check whether or not two iterables `a` and `b` are pairwise close to each other in at least one place
     pub fn any_close<I, J>(&self, a: I, b: J) -> bool
     where
         I: IntoIterator<Item = T>,
@@ -276,7 +306,7 @@ pub fn default<T: Float>() -> IsClose<T> {
     IsClose::default()
 }
 
-/// Check whether or not two values `a` and `b` are "close" to each other
+/// Check whether or not two values `a` and `b` are close to each other
 ///
 /// ## Usage
 /// ```
@@ -300,7 +330,7 @@ macro_rules! is_close {
     };
 }
 
-/// Check whether or not two iterables `a` and `b` are pairwise "close" to each other
+/// Check whether or not two iterables `a` and `b` are pairwise close to each other
 ///
 /// ## Usage
 /// ```
@@ -324,7 +354,7 @@ macro_rules! all_close {
     };
 }
 
-/// Check whether or not two iterables `a` and `b` are pairwise "close" to each other in at least one place
+/// Check whether or not two iterables `a` and `b` are pairwise close to each other in at least one place
 ///
 /// ## Usage
 /// ```
