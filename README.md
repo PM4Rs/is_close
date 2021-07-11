@@ -7,12 +7,12 @@
 [![License](https://img.shields.io/crates/l/is_close)](https://crates.io/crates/is_close#license)
 [![Downloads](https://img.shields.io/crates/d/is_close)](https://crates.io/crates/is_close)
 
-In use cases such as testing it is often times more useful to know whether two floating point
+In scenarios such as testing it is often times more useful to know whether two floating point
 numbers are close to each other rather than exactly equal. Due to finite precision of computers,
-we usually cannot even expect bitwise equality of two values even if underlaying math suggests
-it. This is where [`is_close`](https://crates.io/crates/is_close) comes in. The crate is
-strongly inspired by
-[Python's PEP 485 _aka_ `math.isclose`](https://www.python.org/dev/peps/pep-0485/).
+we usually cannot even expect bitwise equality of two values even if underlying math suggests
+it. This is where [`is_close`](https://crates.io/crates/is_close) comes into play. This crate is
+strongly inspired by Python [PEP 485](https://www.python.org/dev/peps/pep-0485/) _aka_
+[`math.isclose`](https://docs.python.org/3/library/math.html#math.isclose).
 
 ## Usage
 

@@ -1,11 +1,12 @@
-//! Determine whether floating point numbers are close in value
+//! Test floating point numbers for equality
 //!
-//! In use cases such as testing it is often times more useful to know whether two floating point
-//! numbers are close to each other rather than exactly equal. Due to finite precision of computers,
+//! In scenarios like testing it is often times more useful to know whether two floating point
+//! numbers are close to each other rather than exactly equal. Due to finite precision of computers
 //! we usually cannot even expect bitwise equality of two values even if underlaying math suggests
 //! it. This is where [`is_close`](https://crates.io/crates/is_close) comes in. The crate is
 //! strongly inspired by
-//! [Python's PEP 485 _aka_ `math.isclose`](https://www.python.org/dev/peps/pep-0485/).
+//! [Python's PEP 485](https://www.python.org/dev/peps/pep-0485/) _aka_
+//! [`math.isclose`](https://docs.python.org/3/library/math.html#math.isclose).
 //!
 //! ## Examples
 //!
@@ -44,13 +45,13 @@
 //! ## Advanced Usage
 //!
 //! There are different ways to determine whether two values are close to each other or not.
-//! There are a few paramenters playing into the comparison of two floats. `is_close` comes with
-//! sane [default settings](fn.default.html). However, the following examples illustrate how to
-//! tweak the comparison to suit your needs:
+//! A few paramenters playing into the comparison of two floats. While `is_close` comes with sane
+//! [default settings], following examples illustrate how to tweak the comparison
+//! to suit your needs:
 //!
 //! ### Relative Tolerance
 //! The amount of error allowed, relative to the magnitude of the input values.
-//! TODO method
+//! Check out [`Method`].
 //! ```
 //! # #[macro_use]
 //! # extern crate is_close;
@@ -61,7 +62,7 @@
 //! ```
 //!
 //! ### Absolute Tolerance
-//! Useful for comparisons near zero.
+//! The absolute tolerance is useful for comparisons near zero.
 //! ```
 //! # #[macro_use]
 //! # extern crate is_close;
@@ -72,7 +73,7 @@
 //! ```
 //!
 //! ### Methods:
-//! The strategy of how to interpret relative tolerance, see [`Method`](enum.Method.html):
+//! The strategy of how to interpret relative tolerance, see [`Method`]:
 //!
 //! **Weak (default):** relative tolerance is scaled by the larger of the two values
 //! ```
@@ -122,18 +123,18 @@
 //!
 //! # fn main() {
 //! let ic = default().method(ASYMMETRIC).rel_tol(1e-1).compile();
-//! assert!(ic(9.0, 10.0));
-//! assert!(!ic(10.0, 9.0));
+//! assert!(ic.is_close(9.0, 10.0));
+//! assert!(!ic.is_close(10.0, 9.0));
 //! # }
 //! ```
 //!
 extern crate num_traits;
 
-use std::fmt::{Debug, Formatter};
+use std::fmt::Debug;
 
-use num_traits::{cast, Float};
+use num_traits::{cast::cast, Float};
 
-/// Strategies of handling relative tolerance
+/// Strategies for handling relative tolerance
 ///
 /// For detailed reasoning on the pros and cons of the different variants checkout
 /// [PEP 485](https://www.python.org/dev/peps/pep-0485/#relative-difference).
@@ -150,16 +151,65 @@ pub enum Method {
     Asymmetric,
 }
 
-/// Shorthand for [`Method::Asymmetric`](enum.Method.html)
+impl Method {
+    #[inline]
+    fn common_checks<T: Float>(a: T, b: T) -> Option<bool> {
+        if a == b {
+            Some(true)
+        } else if !a.is_finite() || !b.is_finite() {
+            Some(false)
+        } else {
+            None
+        }
+    }
+
+    fn method<'a, T: Float + 'a>(&self, rel_tol: T, abs_tol: T) -> Box<dyn Fn(T, T) -> bool + 'a> {
+        match self {
+            Method::Asymmetric => Box::new(move |a, b| match Self::common_checks(a, b) {
+                Some(result) => result,
+                None => {
+                    let diff = Float::abs(a - b);
+                    (diff <= Float::abs(rel_tol * b)) || (diff <= abs_tol)
+                }
+            }),
+            Method::Average => Box::new(move |a, b| match Self::common_checks(a, b) {
+                Some(result) => result,
+                None => {
+                    let diff = Float::abs(a - b);
+                    diff <= (rel_tol * (a + b) / cast(2.0).unwrap()).abs()
+                        || (diff <= abs_tol)
+                }
+            }),
+            Method::Strong => Box::new(move |a, b| match Self::common_checks(a, b) {
+                Some(result) => result,
+                None => {
+                    let diff = Float::abs(a - b);
+                    ((diff <= Float::abs(rel_tol * b)) && (diff <= Float::abs(rel_tol * a)))
+                        || (diff <= abs_tol)
+                }
+            }),
+            Method::Weak => Box::new(move |a, b| match Self::common_checks(a, b) {
+                Some(result) => result,
+                None => {
+                    let diff = Float::abs(a - b);
+                    ((diff <= Float::abs(rel_tol * b)) || (diff <= Float::abs(rel_tol * a)))
+                        || (diff <= abs_tol)
+                }
+            }),
+        }
+    }
+}
+
+/// Shorthand for [`Method::Asymmetric`]
 pub const ASYMMETRIC: Method = Method::Asymmetric;
 
-/// Shorthand for [`Method::Average`](enum.Method.html)
+/// Shorthand for [`Method::Average`]
 pub const AVERAGE: Method = Method::Average;
 
-/// Shorthand for [`Method::Strong`](enum.Method.html)
+/// Shorthand for [`Method::Strong`]
 pub const STRONG: Method = Method::Strong;
 
-/// Shorthand for [`Method::Weak`](enum.Method.html)
+/// Shorthand for [`Method::Weak`]
 pub const WEAK: Method = Method::Weak;
 
 impl From<&str> for Method {
@@ -174,136 +224,126 @@ impl From<&str> for Method {
     }
 }
 
-/// Compare two floats with some tolerance
-///
-/// This type holds information on how to compare floats and is heavily inspired by
-/// [Python's PEP 485](https://www.python.org/dev/peps/pep-0485/). It holds the following parameters:
-///
-/// - `rel_tol`: maximum difference for being considered close, relative to the magnitude of the
-///         input values, defaults to 1e-8
-/// - `abs_tol`: maximum difference for being considered close, regardless of the magnitude of the
-///         input values, defaults to 0.0
-/// - `method`: strategy of how to interpret relative tolerance, see [`Method`](enum.Method.html)
-///
-pub struct IsClose<T: Float> {
-    _rel_tol: T,
-    _abs_tol: T,
-    _method: Method,
+/// Default relative tolerance
+pub const DEFAULT_REL_TOL: f64 = 1e-8;
+
+/// Default absolute tolerance
+pub const DEFAULT_ABS_TOL: f64 = 0.0;
+
+/// Float Comparator
+pub struct Comparator<'a, T: Float> {
+    is_close: Box<dyn Fn(T, T) -> bool + 'a>,
 }
 
-impl<T: Float> Default for IsClose<T> {
+impl<T: Float> Comparator<'_, T> {
+    /// Check whether or not two values `a` and `b` are close to each other
+    pub fn is_close(&self, a: T, b: T) -> bool {
+        (self.is_close)(a, b)
+    }
+
+    /// Check whether or not two iterables `a` and `b` are pairwise close to each other
+    pub fn all_close<I, J>(&self, a: I, b: J) -> bool
+        where
+            I: IntoIterator<Item=T>,
+            J: IntoIterator<Item=T>,
+    {
+        a.into_iter()
+            .zip(b.into_iter())
+            .all(|(x, y)| self.is_close(x, y))
+    }
+
+    /// Check whether or not two iterables `a` and `b` are pairwise close to each other in at least one place
+    pub fn any_close<I, J>(&self, a: I, b: J) -> bool
+        where
+            I: IntoIterator<Item=T>,
+            J: IntoIterator<Item=T>,
+    {
+        a.into_iter()
+            .zip(b.into_iter())
+            .any(|(x, y)| self.is_close(x, y))
+    }
+}
+
+/// Builder for [`Comparator`] functions. It holds the following parameters:
+///
+/// - `rel_tol`: maximum difference for being considered close, relative to the magnitude of the
+///         input values. It defaults to [`DEFAULT_REL_TOL`].
+/// - `abs_tol`: maximum difference for being considered close, regardless of the magnitude of the
+///         input values. It defaults to [`DEFAULT_ABS_TOL`].
+/// - `method`: strategy of how to interpret relative tolerance. It defaults to [`Method::Weak`].
+///
+#[derive(Clone, Debug)]
+pub struct ComparatorBuilder<T: Float> {
+    rel_tol: T,
+    abs_tol: T,
+    method: Method,
+}
+
+impl<T: Float> Default for ComparatorBuilder<T> {
     fn default() -> Self {
-        IsClose {
-            _rel_tol: cast::cast(1e-8).unwrap(),
-            _abs_tol: cast::cast(0.0).unwrap(),
-            _method: WEAK,
+        ComparatorBuilder {
+            rel_tol: cast(DEFAULT_REL_TOL).unwrap(),
+            abs_tol: cast(DEFAULT_ABS_TOL).unwrap(),
+            method: WEAK,
         }
     }
 }
 
-impl<T: Float + Debug> Debug for IsClose<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let mut f = f.debug_struct("IsClose");
-
-        f.field("rel_tol", &self._rel_tol);
-        f.field("abs_tol", &self._abs_tol);
-        f.field("method", &self._method);
-
-        f.finish()
-    }
-}
-
-impl<T: Float + 'static> IsClose<T> {
+impl<T: Float> ComparatorBuilder<T> {
     /// Set the relative tolerance
     pub fn rel_tol(&mut self, value: T) -> &mut Self {
-        self._rel_tol = value.abs();
+        self.rel_tol = value.abs();
         self
     }
 
     /// Set the absolute tolerance
     pub fn abs_tol(&mut self, value: T) -> &mut Self {
-        self._abs_tol = value.abs();
+        self.abs_tol = value.abs();
         self
     }
 
     /// Set the strategy used to handle relative tolerance
     pub fn method<M: Into<Method>>(&mut self, method: M) -> &mut Self {
-        self._method = method.into();
+        self.method = method.into();
         self
-    }
-
-    /// Compile current configuration into a closure which increases speed when called multiple times
-    pub fn compile(&self) -> Box<dyn Fn(T, T) -> bool> {
-        let rel_tol = self._rel_tol;
-        let abs_tol = self._abs_tol;
-
-        let _is_close: Box<dyn Fn(T, T, T) -> bool> = match self._method {
-            Method::Asymmetric => {
-                Box::new(move |_, b, diff| (diff <= Float::abs(rel_tol * b)) || (diff <= abs_tol))
-            }
-            Method::Average => Box::new(move |a, b, diff| {
-                diff <= (rel_tol * (a + b) / cast::cast(2.0).unwrap()).abs() || (diff <= abs_tol)
-            }),
-            Method::Strong => Box::new(move |a, b, diff| {
-                ((diff <= Float::abs(rel_tol * b)) && (diff <= Float::abs(rel_tol * a)))
-                    || (diff <= abs_tol)
-            }),
-            Method::Weak => Box::new(move |a, b, diff| {
-                ((diff <= Float::abs(rel_tol * b)) || (diff <= Float::abs(rel_tol * a)))
-                    || (diff <= abs_tol)
-            }),
-        };
-
-        Box::new(move |a: T, b: T| {
-            // trivial case
-            if a == b {
-                return true;
-            }
-
-            // check border cases
-            let diff = (b - a).abs();
-            if !diff.is_finite() {
-                return false;
-            }
-
-            // assess difference by chosen method
-            _is_close(a, b, diff)
-        })
-    }
-
-    /// Check whether or not two values `a` and `b` are close to each other
-    pub fn is_close(&self, a: T, b: T) -> bool {
-        self.compile()(a, b)
-    }
-
-    /// Check whether or not two iterables `a` and `b` are pairwise close to each other
-    pub fn all_close<I, J>(&self, a: I, b: J) -> bool
-    where
-        I: IntoIterator<Item = T>,
-        J: IntoIterator<Item = T>,
-    {
-        let _is_close = self.compile();
-        a.into_iter()
-            .zip(b.into_iter())
-            .all(|(x, y)| _is_close(x, y))
-    }
-
-    /// Check whether or not two iterables `a` and `b` are pairwise close to each other in at least one place
-    pub fn any_close<I, J>(&self, a: I, b: J) -> bool
-    where
-        I: IntoIterator<Item = T>,
-        J: IntoIterator<Item = T>,
-    {
-        let _is_close = self.compile();
-        a.into_iter()
-            .zip(b.into_iter())
-            .any(|(x, y)| _is_close(x, y))
     }
 }
 
-/// Create default [`IsClose`](struct.IsClose.html) configuration: `{ rel_tol: 1e-8, abs_tol: 0.0, method: "weak" }`
-pub fn default<T: Float>() -> IsClose<T> {
-    IsClose::default()
+impl<'a, T: Float + 'a> ComparatorBuilder<T> {
+    // Compile current configuration into a closure which increases speed when called multiple times
+    pub fn compile(&self) -> Comparator<'a, T> {
+        Comparator {
+            is_close: self.method.method(self.rel_tol, self.abs_tol),
+        }
+    }
+
+    /// Shorthand for `compile().is_close(a, b)`
+    pub fn is_close(&self, a: T, b: T) -> bool {
+        self.compile().is_close(a, b)
+    }
+
+    /// Shorthand for `compile().all_close(a, b)`
+    pub fn all_close<I, J>(&self, a: I, b: J) -> bool
+        where
+            I: IntoIterator<Item=T>,
+            J: IntoIterator<Item=T>,
+    {
+        self.compile().all_close(a, b)
+    }
+
+    /// Shorthand for `compile().any_close(a, b)`
+    pub fn any_close<I, J>(&self, a: I, b: J) -> bool
+        where
+            I: IntoIterator<Item=T>,
+            J: IntoIterator<Item=T>,
+    {
+        self.compile().any_close(a, b)
+    }
+}
+
+/// Create default [`IsClose`] configuration: `{ rel_tol: 1e-8, abs_tol: 0.0, method: "weak" }`
+pub fn default<T: Float>() -> ComparatorBuilder<T> {
+    ComparatorBuilder::default()
 }
 
 /// Check whether or not two values `a` and `b` are close to each other
@@ -385,7 +425,7 @@ mod tests {
     #[test]
     fn test_debug() {
         assert_eq!(
-            "IsClose { rel_tol: 0.00000001, abs_tol: 0.0, method: Weak }",
+            "ComparatorBuilder { rel_tol: 0.00000001, abs_tol: 0.0, method: Weak }",
             format!("{:?}", default::<f64>())
         )
     }
@@ -478,8 +518,8 @@ mod tests {
         assert!(!is_close!(10.0, 9.0, rel_tol = 1e-1, method = AVERAGE));
 
         let ic = default().method(ASYMMETRIC).rel_tol(1e-1).compile();
-        assert!(ic(9.0, 10.0));
-        assert!(!ic(10.0, 9.0));
+        assert!(ic.is_close(9.0, 10.0));
+        assert!(!ic.is_close(10.0, 9.0));
     }
 
     #[test]
